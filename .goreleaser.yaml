@@ -1,0 +1,62 @@
+version: 2
+project_name: lazy
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - main: ./cmd/lazy
+    binary: lazy
+    env: [CGO_ENABLED=0]
+    goos: [darwin, linux, windows]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags: ["-s -w -X main.version={{.Version}}"]
+
+archives:
+  - formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files: [README.md, LICENSE]
+
+checksum:
+  name_template: checksums.txt
+
+nfpms:
+  - package_name: lazy
+    homepage: https://github.com/himanshupphp/lazyfinger
+    maintainer: Himanshu Pokale <himanshu.pokale@gmail.com>
+    description: Wrap any command. When it fails, get an AI-proposed fix to approve.
+    license: MIT
+    formats: [deb, rpm]
+
+# macOS: brew install --cask himanshupphp/tap/lazy
+homebrew_casks:
+  - name: lazy
+    binaries: [lazy]
+    homepage: https://github.com/himanshupphp/lazyfinger
+    description: Wrap any command. When it fails, get an AI-proposed fix to approve.
+    repository:
+      owner: himanshupphp
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    hooks:
+      post:
+        # The binary isn't notarized yet, so clear the quarantine flag
+        # or macOS Gatekeeper refuses to run it.
+        install_steps: |
+          run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/lazy"]
+
+# Windows: scoop install lazy
+scoops:
+  - name: lazy
+    homepage: https://github.com/himanshupphp/lazyfinger
+    description: Wrap any command. When it fails, get an AI-proposed fix to approve.
+    license: MIT
+    repository:
+      owner: himanshupphp
+      name: scoop-bucket
+      token: "{{ .Env.SCOOP_BUCKET_GITHUB_TOKEN }}"
