@@ -20,7 +20,9 @@ lazy run              # install, set up, start, and watch any project
 lazy npm run build    # or put it in front of any command to fix it when it fails
 ```
 
-![LazyFinger fixing a failing build](docs/demo.gif)
+<p align="center">
+  <img src="docs/demo.gif" alt="LazyFinger fixing a failing build" width="100%">
+</p>
 
 - **Works with any command:** npm, composer, artisan, pytest, cargo, go, gradle, make, your own scripts.
 - **Runs any project:** detects the stack, installs what's missing, fills in `.env`, starts the database, starts the app, and opens it in your browser.
