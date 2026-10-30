@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LazyFinger · setup</title>
+<style>
+  :root{--bg:#0f1117;--panel:#171a22;--panel2:#1f2330;--border:#2b3040;--text:#e6e8ee;--muted:#8b93a7;--accent:#8b7cf6;--ok:#3fb950;--warn:#d29922;--bad:#f85149}
+  @media (prefers-color-scheme:light){:root{--bg:#f5f6fa;--panel:#fff;--panel2:#f2f3f8;--border:#e0e3eb;--text:#1b1f2a;--muted:#5f677a}}
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,sans-serif;background:var(--bg);color:var(--text)}
+  .wrap{max-width:880px;margin:0 auto;padding:40px 24px 140px}
+  header{display:flex;align-items:center;gap:12px}
+  .logo{background:var(--accent);color:#fff;font-weight:700;padding:3px 10px;border-radius:7px}
+  header h1{font-size:22px;margin:0}
+  .sub{color:var(--muted);margin:6px 0 0}
+  section{margin-top:34px}
+  h2{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:0 0 12px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:18px 20px;margin-bottom:12px}
+  .card.default{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+  .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:12px;flex-wrap:wrap}
+  .pill{font-size:12px;padding:2px 8px;border-radius:999px;background:var(--panel2);color:var(--muted);margin-left:6px}
+  .pill.accent{background:var(--accent);color:#fff}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+  input{width:100%;padding:9px 11px;border-radius:9px;border:1px solid var(--border);background:var(--panel2);color:var(--text);font:inherit}
+  input:focus{outline:2px solid var(--accent);outline-offset:-1px}
+  .inline{display:flex;gap:8px}
+  button{font:inherit;font-size:14px;border-radius:9px;padding:8px 14px;border:1px solid var(--border);background:var(--panel2);color:var(--text);cursor:pointer;white-space:nowrap}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;padding:10px 22px}
+  button.link{background:none;border:none;color:var(--muted);padding:6px 8px}
+  button.link:hover{color:var(--text)}
+  button:disabled{opacity:.55;cursor:default}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .actions{display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap}
+  .status{font-size:13px;color:var(--muted)}
+  .ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}
+  details{margin-top:12px}
+  summary{cursor:pointer;color:var(--muted);font-size:13px}
+  details .grid{margin-top:10px}
+  .found{display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .seg{display:inline-flex;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  .seg button{border:none;border-radius:0;background:var(--panel2)}
+  .seg button.on{background:var(--accent);color:#fff}
+  .hint{color:var(--muted);font-size:13px;margin:10px 0 0}
+  .bar{position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--border)}
+  .bar .in{max-width:880px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .done{text-align:center;padding:90px 20px}
+  .done h1{font-size:28px;margin:18px 0 8px}
+  a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header><span class="logo">LazyFinger</span><h1>Model setup</h1></header>
+  <p class="sub" id="sub">Loading…</p>
+
+  <section>
+    <h2>Found on this computer</h2>
+    <div id="detected"><div class="card status">Looking for local model servers…</div></div>
+  </section>
+
+  <section>
+    <h2>Your models</h2>
+    <div id="providers"></div>
+    <div class="card">
+      <label>Add a model provider</label>
+      <div class="chips" id="presets"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>How LazyFinger applies fixes</h2>
+    <div class="card">
+      <div class="seg" id="mode">
+        <button data-mode="analyze">Analyze first</button>
+        <button data-mode="autofix">Autofix</button>
+      </div>
+      <p class="hint" id="modeHint"></p>
+      <div style="max-width:220px;margin-top:16px">
+        <label for="attempts">Fix attempts per run</label>
+        <input id="attempts" type="number" min="1" max="10">
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="bar"><div class="in">
+  <span class="status" id="saveStatus"></span>
+  <button class="primary" id="save">Save</button>
+</div></div>
+
+<script>
+const token = new URLSearchParams(location.search).get("t") || "";
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;"}[c])).replace(/\x27/g, "&#39;");
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+const PRESETS = [
+  { id: "ollama",     label: "Ollama",                     name: "local",      type: "openai",    baseUrl: "http://localhost:11434/v1" },
+  { id: "lmstudio",   label: "LM Studio",                  name: "lmstudio",   type: "openai",    baseUrl: "http://localhost:1234/v1" },
+  { id: "claude",     label: "Claude",                     name: "claude",     type: "anthropic", baseUrl: "", model: "claude-sonnet-5-5" },
+  { id: "openai",     label: "OpenAI",                     name: "openai",     type: "openai",    baseUrl: "https://api.openai.com/v1" },
+  { id: "openrouter", label: "OpenRouter",                 name: "openrouter", type: "openai",    baseUrl: "https://openrouter.ai/api/v1" },
+  { id: "custom",     label: "Custom (OpenAI-compatible)", name: "custom",     type: "openai",    baseUrl: "http://" },
+];
+const MODE_HINTS = {
+  analyze: "LazyFinger explains each fix and shows the diff, then waits for you to approve it.",
+  autofix: "LazyFinger applies dependency installs and code edits on its own, then shows a summary. Unverified packages, risky commands and secrets still ask first.",
+};
+
+let state = { providers: [], default: "", mode: "analyze", maxAttempts: 3 };
+let detected = null;
+
+async function api(path, body) {
+  const res = await fetch("/api/" + path, {
+    method: body === undefined ? "GET" : "POST",
+    headers: { "X-Lazy-Token": token, "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || res.statusText);
+  return data;
+}
+
+const isLocal = (u) => /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(u || "");
+const needsKey = (p) => p.type === "anthropic" || !isLocal(p.baseUrl);
+
+function uniqueName(base) {
+  let name = base, n = 2;
+  while (state.providers.some(p => p.name === name)) name = `${base}-${n++}`;
+  return name;
+}
+
+function addProvider(preset, overrides = {}) {
+  state.providers.push({
+    name: uniqueName(preset.name), type: preset.type, baseUrl: preset.baseUrl, model: preset.model || "",
+    apiKeyEnv: "", maxTokens: 0, apiKey: "", keySource: "", models: [], status: "", isNew: true, ...overrides,
+  });
+  const i = state.providers.length - 1;
+  if (!state.default) state.default = state.providers[i].name;
+  renderProviders();
+  renderDetected();
+  if (isLocal(state.providers[i].baseUrl)) loadModels(i);
+}
+
+function field(label, f, value, i, type = "text", placeholder = "") {
+  return `<div><label>${label}</label><input type="${type}" data-i="${i}" data-f="${f}" value="${esc(value)}" placeholder="${esc(placeholder)}" autocomplete="off" spellcheck="false"></div>`;
+}
+
+function card(p, i) {
+  const isDefault = state.default === p.name;
+  const keyNote = p.keySource === "env" ? `using $${p.apiKeyEnv}` : p.keySource === "keychain" ? "saved in your keychain" : "";
+  const keyPlaceholder = keyNote ? `•••••••• ${keyNote}` : needsKey(p) ? "Paste your API key" : "Not needed for local servers";
+  return `<div class="card ${isDefault ? "default" : ""}">
+    <div class="head">
+      <div><strong>${esc(p.name)}</strong><span class="pill">${p.type === "anthropic" ? "Anthropic" : "OpenAI-compatible"}</span>${isDefault ? "<span class=\"pill accent\">Default</span>" : ""}</div>
+      <div>${isDefault ? "" : `<button class="link" data-act="default" data-i="${i}">Make default</button>`}<button class="link" data-act="remove" data-i="${i}">Remove</button></div>
+    </div>
+    <div class="grid">
+      ${p.isNew ? field("Name", "name", p.name, i) : ""}
+      ${p.type === "anthropic" ? "" : field("Server URL", "baseUrl", p.baseUrl, i, "url", "http://localhost:11434/v1")}
+      <div><label>Model</label><div class="inline">
+        <input data-i="${i}" data-f="model" value="${esc(p.model)}" list="models-${i}" placeholder="Pick or type a model" autocomplete="off" spellcheck="false">
+        <button data-act="models" data-i="${i}">Load list</button></div>
+        <datalist id="models-${i}">${p.models.map(m => `<option value="${esc(m)}">`).join("")}</datalist></div>
+      <div><label>API key${needsKey(p) ? "" : " (optional)"}</label>
+        <input type="password" data-i="${i}" data-f="apiKey" value="${esc(p.apiKey)}" placeholder="${esc(keyPlaceholder)}" autocomplete="new-password"></div>
+    </div>
+    <details><summary>Advanced</summary><div class="grid">
+      ${field("Read API key from environment variable", "apiKeyEnv", p.apiKeyEnv, i, "text", "ANTHROPIC_API_KEY")}
+      ${field("Max tokens", "maxTokens", p.maxTokens || "", i, "number", "default")}
+    </div></details>
+    <div class="actions">
+      <button data-act="test" data-i="${i}">Test connection</button>
+      <span class="status" id="status-${i}">${p.status}</span>
+    </div>
+  </div>`;
+}
+
+function renderProviders() {
+  $("providers").innerHTML = state.providers.length
+    ? state.providers.map(card).join("")
+    : `<div class="card status">No models yet. Add one below.</div>`;
+}
+
+function renderPresets() {
+  $("presets").innerHTML = PRESETS.map((p, i) => `<button data-preset="${i}">${esc(p.label)}</button>`).join("");
+}
+
+function renderDetected() {
+  if (detected === null) return;
+  const el = $("detected");
+  if (!detected.length) {
+    el.innerHTML = `<div class="card"><span class="status">No local model server is running. To run models privately on this computer, install <a href="https://ollama.com" target="_blank" rel="noopener">Ollama</a> or <a href="https://lmstudio.ai" target="_blank" rel="noopener">LM Studio</a>, start it, then reload this page.</span></div>`;
+    return;
+  }
+  el.innerHTML = detected.map((d, i) => {
+    const added = state.providers.some(p => (p.baseUrl || "").replace(/\/+$/, "") === d.baseUrl);
+    const n = d.models.length;
+    const list = n ? ": " + esc(d.models.slice(0, 3).join(", ")) + (n > 3 ? "…" : "") : "";
+    return `<div class="card found">
+      <div><strong>${esc(d.label)}</strong> is running<div class="status">${n} model${n === 1 ? "" : "s"} installed${list}</div></div>
+      ${added ? "<span class=\"status ok\">✓ Added</span>" : `<button data-found="${i}">Use ${esc(d.label)}</button>`}
+    </div>`;
+  }).join("");
+}
+
+function renderMode() {
+  document.querySelectorAll("#mode button").forEach(b => b.classList.toggle("on", b.dataset.mode === state.mode));
+  $("modeHint").textContent = MODE_HINTS[state.mode] || "";
+}
+
+function setStatus(i, html) {
+  state.providers[i].status = html;
+  const el = $("status-" + i);
+  if (el) el.innerHTML = html;
+}
+
+function dto(p) {
+  return {
+    name: p.name.trim(), type: p.type, baseUrl: (p.baseUrl || "").trim(), model: p.model.trim(),
+    apiKeyEnv: (p.apiKeyEnv || "").trim(), maxTokens: p.maxTokens || 0, apiKey: (p.apiKey || "").trim(),
+  };
+}
+
+async function loadModels(i) {
+  const p = state.providers[i];
+  setStatus(i, "Loading models…");
+  try {
+    const { models } = await api("models", dto(p));
+    p.models = models;
+    const dl = $("models-" + i);
+    if (dl) dl.innerHTML = models.map(m => `<option value="${esc(m)}">`).join("");
+    if (!p.model && models.length) {
+      p.model = models[0];
+      const input = document.querySelector(`input[data-i="${i}"][data-f="model"]`);
+      if (input) input.value = p.model;
+    }
+    setStatus(i, models.length
+      ? `<span class="ok">✓ ${models.length} model${models.length === 1 ? "" : "s"} available</span>`
+      : `<span class="warn">Connected, but no models are installed.${isLocal(p.baseUrl) ? " Try: ollama pull qwen2.5-coder:7b" : ""}</span>`);
+  } catch (err) {
+    setStatus(i, `<span class="bad">✗ ${esc(cap(err.message))}</span>`);
+  }
+}
+
+async function testProvider(i, btn) {
+  const p = state.providers[i];
+  if (!p.model.trim()) { setStatus(i, "<span class=\"warn\">Pick a model first.</span>"); return; }
+  btn.disabled = true;
+  setStatus(i, "Sending a test message… (local models can take a while to load the first time)");
+  try {
+    const r = await api("test", dto(p));
+    setStatus(i, `<span class="ok">✓ Connected in ${(r.ms / 1000).toFixed(1)}s. The model replied: “${esc(r.reply)}”</span>`);
+  } catch (err) {
+    setStatus(i, `<span class="bad">✗ ${esc(cap(err.message))}</span>`);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function validate() {
+  if (!state.providers.length) return "Add at least one model provider.";
+  const names = new Set();
+  for (const p of state.providers) {
+    const n = p.name.trim();
+    if (!/^[A-Za-z0-9_-]+$/.test(n)) return `"${n || "(empty)"}" isn't a valid name. Use letters, numbers, - and _.`;
+    if (names.has(n)) return `Two providers are named "${n}".`;
+    names.add(n);
+    if (!p.model.trim()) return `Choose a model for "${n}".`;
+    if (p.type !== "anthropic" && !/^https?:\/\/.+/.test((p.baseUrl || "").trim())) return `"${n}" needs a server URL starting with http:// or https://.`;
+  }
+  if (!names.has(state.default)) state.default = state.providers[0].name.trim();
+  return "";
+}
+
+$("providers").addEventListener("input", (e) => {
+  const { i, f } = e.target.dataset;
+  if (i === undefined) return;
+  const p = state.providers[+i];
+  if (f === "name") {
+    const v = e.target.value.trim();
+    if (state.default === p.name) state.default = v;
+    p.name = v;
+  } else if (f === "maxTokens") {
+    p.maxTokens = parseInt(e.target.value, 10) || 0;
+  } else {
+    p[f] = e.target.value;
+  }
+});
+
+$("providers").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-act]");
+  if (!btn) return;
+  const i = +btn.dataset.i, p = state.providers[i];
+  switch (btn.dataset.act) {
+    case "default": state.default = p.name; renderProviders(); break;
+    case "remove":
+      state.providers.splice(i, 1);
+      if (state.default === p.name) state.default = state.providers[0]?.name || "";
+      renderProviders(); renderDetected(); break;
+    case "models": loadModels(i); break;
+    case "test": testProvider(i, btn); break;
+  }
+});
+
+$("presets").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-preset]");
+  if (b) addProvider(PRESETS[+b.dataset.preset]);
+});
+
+$("detected").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-found]");
+  if (!b) return;
+  const d = detected[+b.dataset.found];
+  addProvider(PRESETS.find(p => p.id === d.id), { baseUrl: d.baseUrl, model: d.models[0] || "", models: d.models });
+});
+
+$("mode").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-mode]");
+  if (b) { state.mode = b.dataset.mode; renderMode(); }
+});
+
+$("attempts").addEventListener("input", (e) => { state.maxAttempts = parseInt(e.target.value, 10) || 3; });
+
+$("save").addEventListener("click", async () => {
+  const problem = validate();
+  if (problem) { $("saveStatus").innerHTML = `<span class="bad">${esc(problem)}</span>`; return; }
+  $("save").disabled = true;
+  $("saveStatus").textContent = "Saving…";
+  try {
+    const r = await api("save", { default: state.default, mode: state.mode, maxAttempts: state.maxAttempts, providers: state.providers.map(dto) });
+    await api("close", {}).catch(() => {});
+    document.body.innerHTML = `<div class="done"><span class="logo">LazyFinger</span><h1>You're all set</h1>
+      <p class="status">Saved to ${esc(r.path)}</p><p class="status">You can close this tab and go back to your terminal.</p></div>`;
+  } catch (err) {
+    $("saveStatus").innerHTML = `<span class="bad">✗ ${esc(cap(err.message))}</span>`;
+    $("save").disabled = false;
+  }
+});
+
+(async function init() {
+  renderPresets();
+  try {
+    const s = await api("state");
+    state = { ...s, providers: s.providers.map(p => ({ ...p, apiKey: "", models: [], status: "", isNew: false })) };
+    $("sub").textContent = s.exists ? `Editing ${s.path}` : "Choose which model LazyFinger uses to diagnose and fix failing commands.";
+  } catch (err) {
+    $("sub").innerHTML = `<span class="bad">Couldn't load your settings: ${esc(err.message)}</span>`;
+  }
+  $("attempts").value = state.maxAttempts;
+  renderMode();
+  renderProviders();
+  try { detected = (await api("detect")).found; } catch { detected = []; }
+  renderDetected();
+})();
+</script>
+</body>
+</html>
